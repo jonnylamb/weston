@@ -1758,6 +1758,14 @@ seat_get_keyboard(struct wl_client *client, struct wl_resource *resource,
 		    wl_resource_get_link(cr))
 			wl_data_device_set_keyboard_focus(seat);
 	}
+
+	/* if wl_seat's version is at least 4, the wl_keyboard's
+	 * version must be 4, so we support repeat_info */
+	if (wl_resource_get_version(resource) >= 4) {
+		wl_keyboard_send_repeat_info(cr,
+					     seat->compositor->kb_repeat_rate,
+					     seat->compositor->kb_repeat_delay);
+	}
 }
 
 static void
@@ -1813,7 +1821,7 @@ bind_seat(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 	enum wl_seat_capability caps = 0;
 
 	resource = wl_resource_create(client,
-				      &wl_seat_interface, MIN(version, 3), id);
+				      &wl_seat_interface, MIN(version, 4), id);
 	wl_list_insert(&seat->base_resource_list, wl_resource_get_link(resource));
 	wl_resource_set_implementation(resource, &seat_interface, data,
 				       unbind_resource);
@@ -2207,7 +2215,7 @@ weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 	wl_signal_init(&seat->destroy_signal);
 	wl_signal_init(&seat->updated_caps_signal);
 
-	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 3,
+	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 4,
 					seat, bind_seat);
 
 	seat->compositor = ec;
