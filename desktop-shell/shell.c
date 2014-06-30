@@ -1754,6 +1754,32 @@ struct weston_resize_grab {
 };
 
 static void
+constrain_move_grab(struct weston_pointer_grab *grab,
+		    int32_t *width, int32_t *height)
+{
+	struct weston_resize_grab *resize = (struct weston_resize_grab *) grab;
+	struct shell_surface *shsurf = resize->base.shsurf;
+
+	int32_t height_difference;
+
+	height_difference = *height - shsurf->surface->height;
+
+	/* this is only really necessary when the panel is at the top */
+	if (shsurf->shell->panel_position == DESKTOP_SHELL_PANEL_POSITION_TOP &&
+	    resize->edges & WL_SHELL_SURFACE_RESIZE_TOP &&
+	    height_difference > 0) {
+		int32_t panel_width, panel_height, top;
+
+		get_output_panel_size(shsurf->shell, shsurf->surface->output,
+				      &panel_width, &panel_height);
+
+		top = (shsurf->view->geometry.y - height_difference) + shsurf->margin.top;
+		if (top < panel_height)
+			*height = shsurf->surface->height;
+	}
+}
+
+static void
 resize_grab_motion(struct weston_pointer_grab *grab, uint32_t time,
 		   wl_fixed_t x, wl_fixed_t y)
 {
@@ -1788,6 +1814,8 @@ resize_grab_motion(struct weston_pointer_grab *grab, uint32_t time,
 	} else if (resize->edges & WL_SHELL_SURFACE_RESIZE_BOTTOM) {
 		height += wl_fixed_to_int(to_y - from_y);
 	}
+
+	constrain_move_grab(grab, &width, &height);
 
 	shsurf->client->send_configure(shsurf->surface, width, height);
 }
